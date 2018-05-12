@@ -102,14 +102,128 @@ function card_value.same_colour(t)
             _value = _value + #v//5
         end
     end
-    return _value
+    return _value * 3
 end
 
-
-function card_value._repeat(t)
-    
+--获取每种点数的牌数量
+local function mj_get_point_nums(set)
+    local ret = {}
+    for k,v in pairs(set) do
+        if not ret[v] then
+            ret[v] = 1
+        else
+            ret[v] = ret[v] + 1
+        end
+    end
+    return ret
 end
 
+local function pk_get_point_nums(set)
+    local ret = {}
+    for k,v in pairs(set) do
+        local _value = get_value{c=v}
+        if not ret[_value] then
+            ret[_value] = 1
+        else
+            ret[_value] = ret[_value] + 1
+        end
+    end
+    return ret
+end
+
+local function mj_get_repeatability(t)
+    local nums = 0
+    local tb = mj_get_point_nums(t.set)
+    for k,v in pairs(tb) do
+        if v == 4 then
+            nums = nums + 4
+        elseif v == 3 then
+            nums = nums + 3
+        elseif v == 2 then
+            nums = nums + 2
+        end
+    end
+    return nums
+end
+
+local function get_repeatability(t)
+    local nums = 0
+    local tb = {}
+    if t.type == "mj" then
+        tb = mj_get_point_nums(t.set)
+    else
+        tb = pk_get_point_nums(t.set)
+    end
+    for k,v in pairs(tb) do
+        --超过4张暂时未处理
+        if v == 4 then
+            nums = nums + 4
+        elseif v == 3 then
+            nums = nums + 3
+        elseif v == 2 then
+            nums = nums + 2
+        end
+    end
+    return nums
+end
+
+function card_value.repeatability(t)
+    return get_repeatability(t) or 0
+end
+
+local function mj_get_continuous(set)
+    local flag = {}
+    for i=1,#set - 2 do
+        if not flag[i] and get_type{c=set[i],type="mj"} ~= 4 then
+            local pos = {i,0,0}
+            for k,v in pairs(set) do
+                if not flag[k] and v == set[i] + 1 then
+                    pos[2] = k
+                end
+                if not flag[k] and v == set[i] + 2 then
+                    pos[3] = k
+                end
+                if math.min(table.unpack(pos)) ~= 0 then
+                    for i=1,#pos do
+                        flag[pos[i]] = true
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return flag
+end
+
+local function get_continuous(set,index)
+    local flag = {}
+    for i=1,#set - 2 do
+        if not flag[i] and get_type{c=set[i],type="mj"} ~= 4 then
+            local pos = {}
+            for k=1,index do
+                pos[k] = 0
+                if k == 1 then
+                    pos[1] = i
+                end
+            end
+            for k,v in pairs(set) do
+                for y=1,index do
+                    if not flag[k] and v == set[i] + y - 1 then
+                        pos[y] = k
+                    end
+                end
+                print(inspect(pos))
+                if math.min(table.unpack(pos)) ~= 0 then
+                    for i=1,#pos do
+                        flag[pos[i]] = true
+                    end
+                    break
+                end
+            end
+        end
+    end
+    return flag
+end
 
 function card_value.continuous(t)
     
@@ -130,7 +244,9 @@ end
 
 local tb = {}
 tb.set = {31,31,31,31,31,32,33,34}
---tb.set = {0x12,0x13,0x14,0x16,0x16,0x25,0x33,0x41}
+tb.set = {0x12,0x13,0x13,0x14,0x14,0x15,0x16,0x16,0x25,0x33,0x41}
 --tb.type = "mj"
 tb.lai_zi = 3
-print(card_value.same_colour(tb))
+--print(card_value.repeatability(tb))
+
+print(inspect(get_continuous(tb.set,3)))
