@@ -5,8 +5,10 @@
     type:默认为扑克，麻将为 “mj”
     lai_zi:扑克传对应的点数，麻将为那张牌的值
     set:要检测的牌
+    index：要检测的连续牌的数
+    ratio: 系数表key为1的对应A
 ]]
-card_value = {}
+M = {}
 local inspect = require "inspect"
 --获取点数
 local function get_value(t)
@@ -76,34 +78,6 @@ local function splice_by_type(t)
     return ret
 end
 
-function card_value.point(t)
-    local point = 0
-    for _,v in pairs(t.set) do
-        point = point + get_point{c=v,type=t.type}
-    end
-    return point/#t.set
-end
-
-function card_value.colour(t)
-    local nums = 0
-    for k,v in pairs(t.set) do
-        nums = nums + (get_type{c=v,type=t.type} - 1 )
-    end
-    return nums/#t.set
-end
-
-
-function card_value.same_colour(t)
-    local tb = splice_by_type(t)
-    print(inspect(tb))
-    local _value = 0
-    for _,v in pairs(tb) do
-        if #v//5 > 0 then
-            _value = _value + #v//5
-        end
-    end
-    return _value * 3
-end
 
 --获取每种点数的牌数量
 local function mj_get_point_nums(set)
@@ -167,9 +141,6 @@ local function get_repeatability(t)
     return nums
 end
 
-function card_value.repeatability(t)
-    return get_repeatability(t) or 0
-end
 
 local function mj_get_continuous(set)
     local flag = {}
@@ -194,11 +165,20 @@ local function mj_get_continuous(set)
     end
     return flag
 end
-
-local function get_continuous(set,index)
+--index 需要的数量(默认为3) 一般麻将为3 扑克为5
+local function get_continuous(set,index,_type)
     local flag = {}
-    for i=1,#set - 2 do
-        if not flag[i] and get_type{c=set[i],type="mj"} ~= 4 then
+    local new_set = {}
+    for _,v in pairs(set) do
+        if _type == "mj" then
+            table.insert(new_set,v)
+        else
+            table.insert(new_set,get_value{c=v,type=type})
+        end
+    end
+    print(inspect(new_set))
+    for i=1,#new_set - 2 do
+        if not flag[i] and (  get_type{c=new_set[i],type=_type} ~= 4 ) then
             local pos = {}
             for k=1,index do
                 pos[k] = 0
@@ -206,13 +186,12 @@ local function get_continuous(set,index)
                     pos[1] = i
                 end
             end
-            for k,v in pairs(set) do
+            for k,v in pairs(new_set) do
                 for y=1,index do
-                    if not flag[k] and v == set[i] + y - 1 then
+                    if not flag[k] and v == new_set[i] + y - 1 then
                         pos[y] = k
                     end
                 end
-                print(inspect(pos))
                 if math.min(table.unpack(pos)) ~= 0 then
                     for i=1,#pos do
                         flag[pos[i]] = true
@@ -225,11 +204,56 @@ local function get_continuous(set,index)
     return flag
 end
 
-function card_value.continuous(t)
-    
+function M.point(t)
+    local point = 0
+    for _,v in pairs(t.set) do
+        point = point + get_point{c=v,type=t.type}
+    end
+    return point/#t.set
 end
 
-function card_value.lai_zi_nums(t)
+function M.colour(t)
+    local nums = 0
+    for k,v in pairs(t.set) do
+        nums = nums + (get_type{c=v,type=t.type} - 1 )
+    end
+    return nums/#t.set
+end
+
+
+function M.same_colour(t)
+    local tb = splice_by_type(t)
+    print(inspect(tb))
+    local _value = 0
+    for _,v in pairs(tb) do
+        if #v//5 > 0 then
+            _value = _value + #v//5
+        end
+    end
+    return _value * 3
+end
+function M.repeatability(t)
+    return get_repeatability(t) or 0
+end
+function M.continuous(t)
+    local ct= get_continuous(t.set,t.index,t.type)
+    print(inspect(ct))
+    local nums = 0
+    for k,v in pairs(ct) do
+        if v then
+            nums = nums + 1
+        end
+    end
+    local continuous = 0
+    if t.type == "mj" then
+        continuous = 2
+    else
+        continuous = 3
+    end
+    return nums/t.index * continuous
+end
+
+function M.lai_zi_nums(t)
     local nums = 0
     for _,v in pairs(t.set) do
         if t.type == "mj" and v == t.lai_zi then
@@ -241,12 +265,21 @@ function card_value.lai_zi_nums(t)
     return nums
 end
 
+function M.card_value(t)
+    local card_value = M.point(t) * t.ratio[1] + M.colour(t) * t.ratio[2] + M.same_colour(t) * t.ratio[3] + M.repeatability(t) * t.ratio[4] + M.continuous(t) * t.ratio[5] + M.lai_zi_nums(t) * t.ratio[6]
 
-local tb = {}
-tb.set = {31,31,31,31,31,32,33,34}
-tb.set = {0x12,0x13,0x13,0x14,0x14,0x15,0x16,0x16,0x25,0x33,0x41}
+end
+
+--[[local tb = {}
+tb.set = {31,32,33,34}
+--tb.set = {0x12,0x13,0x13,0x14,0x14,0x15,0x16,0x16,0x25,0x33,0x41}
 --tb.type = "mj"
 tb.lai_zi = 3
---print(card_value.repeatability(tb))
+tb.index = 3
 
-print(inspect(get_continuous(tb.set,3)))
+tb.ratio = {1,0,0,2,1,2}
+--print(M.repeatability(tb))
+
+print(inspect(M.card_value(tb)))
+]]
+return M
