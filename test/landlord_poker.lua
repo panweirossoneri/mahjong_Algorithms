@@ -270,8 +270,7 @@ function LPokerUtils.getAllSingle(cardsData , tzz)
 	trio , remainCards = LPokerUtils.getAllTrio(remainCards , 0)
 	onePair , remainCards = LPokerUtils.getAllOnePair(remainCards , 0)
 
-	return bomb , trio , onePair , remainCards
-	--[[
+	
 	local sortFunc = function(a, b) return a < b end
 	table.sort(remainCards, sortFunc)
 	table.sort(cardsData, sortFunc)
@@ -298,7 +297,7 @@ function LPokerUtils.getAllSingle(cardsData , tzz)
 		end
 	end
 
-	return result]]
+	return result
 end
 
 function LPokerUtils.getAllSingleEx(cardsData , tzz)
@@ -853,7 +852,7 @@ function LPokerUtils.getAllFourWithTwoSingle(cardsData , tzz)
 						table.insert(singleCards, v)
 					end
 				else
-					return nil
+					return 1
 				end
 			else
 				-- 不够了
@@ -2136,6 +2135,12 @@ function LPokerUtils.sortDescent()
 	end
 end
 
+function LPokerUtils.sort_tzz(t)
+	table.sort(t, function(a,b)
+			return a.tzz > b.tzz
+		end)
+end
+
 function LPokerUtils.get_point_nums(cards)
 	--返回key 点数  value 数量
 	local ret = {}
@@ -2172,6 +2177,128 @@ end
 
 
 
+----计分
+local MAX_TYPE_SCORE = 15
+function LPokerUtils.get_base_score(c)
+	return c//10 + (- 10)
+end
+
+function LPokerUtils.get_base_cards(cards)
+	local cards_Obj = LPokerUtils.numToObj(cards)
+	local print_cards = LPokerUtils.get_point_nums(cards_Obj)
+	local max_card = 0
+	for k,v in pairs(print_cards) do
+		if v >= 3 and max_card < k then
+			max_card = k
+		end
+	end
+	for k,v in pairs(cards_Obj) do
+		if v.value == max_card then
+			return v.value * 10 + v.type
+		end
+	end
+end
+
+function LPokerUtils.get_single_score(cards)
+	return LPokerUtils.get_base_score(cards[1])
+end
+
+function LPokerUtils.get_joke_pair_score(cards)
+	return MAX_TYPE_SCORE + 7
+end
+
+function LPokerUtils.get_on_pair_score(cards)
+	return LPokerUtils.get_base_score(cards[1]) + 2
+end
+
+function LPokerUtils.get_trio_score(cards)
+	local c = LPokerUtils.get_base_cards(cards)
+	return LPokerUtils.get_base_score(c) + 2
+end
+
+function LPokerUtils.get_bomb_score(cards)
+	return LPokerUtils.get_base_score(cards[1]) + 8 + 7
+end
+
+function LPokerUtils.get_four_single_score(cards)
+	local c = LPokerUtils.get_base_cards(cards)
+	return (LPokerUtils.get_base_score(c) + 8 + 1) // 2
+end
+
+function LPokerUtils.single_straight(cards)
+	return LPokerUtils.get_base_score(cards[#cards]) + 3
+end
+
+function LPokerUtils.pair_straight(cards)
+	return LPokerUtils.get_base_score(cards[#cards]) + 3
+end
+
+function LPokerUtils.trio_straight(cards)
+	local c = LPokerUtils.get_base_cards(cards)
+	return LPokerUtils.get_base_score(c) + 3
+end
+
+function LPokerUtils.get_cards_score(cards)
+	local cardsType = LPokerUtils.getTypeOfCards(cards)
+	--print("cardsType分值为:",inspect(cardsType))
+	if cardsType == PokerType.single then
+		return LPokerUtils.get_single_score(cards)
+	elseif cardsType == PokerType.jokePair then
+		return LPokerUtils.get_joke_pair_score(cards)
+
+	elseif cardsType == PokerType.onePair then
+		return LPokerUtils.get_on_pair_score(cards)
+
+	elseif cardsType == PokerType.trio then
+		return LPokerUtils.get_trio_score(cards)
+	
+	elseif cardsType == PokerType.bomb then
+		return LPokerUtils.get_bomb_score(cards)
+
+	elseif cardsType == PokerType.trioWithSingle then
+		return LPokerUtils.get_trio_score(cards)
+
+	elseif cardsType == PokerType.trioWithPair then
+		return LPokerUtils.get_trio_score(cards)
+
+	elseif cardsType == PokerType.fourWithSingle then
+		return LPokerUtils.get_four_single_score(cards)
+
+	elseif cardsType == PokerType.fourWithTwoSingle then
+		return LPokerUtils.get_four_single_score(cards)
+
+	elseif cardsType == PokerType.fourWithTwoPair then
+		return LPokerUtils.get_four_single_score(cards)
+
+	elseif cardsType == PokerType.singleStraight then
+		return LPokerUtils.single_straight(cards)
+
+	elseif cardsType == PokerType.pairStraight then
+		return LPokerUtils.pair_straight(cards)
+
+	elseif cardsType == PokerType.trioStraight then
+		return LPokerUtils.getThreeStraightTypeValue(cards)
+
+	elseif cardsType == PokerType.trioStraightWithSingle then
+		return LPokerUtils.getThreeStraightWithSingleTypeValue(cards)
+
+	elseif cardsType == PokerType.trioStraightWithPair then
+		return LPokerUtils.getThreeStraightWithPairTypeValue(cards)
+
+	elseif cardsType == PokerType.fourStraight then
+		return LPokerUtils.getFourStraightTypeValue(cards)
+
+	elseif cardsType == PokerType.fourStraightWithTwoSingle then
+		return LPokerUtils.getFourStraightWithTwoSingleTypeValue(cards)
+
+	elseif cardsType == PokerType.fourStraightWithTwoPair then
+		return LPokerUtils.getFourStraightWithTwoPairTypeValue(cards)
+	end
+	
+end
+
+--local x = LPokerUtils.get_cards_score{151,152,153,154,122,123}
+--print("牌型分值为:",inspect(x))
 --[[
 local cards = {41,42,54,61,64,74,83,93,103,114,121,122,123,141,144,151,152,153,160}
 local cards_Obj = LPokerUtils.numToObj(cards)
