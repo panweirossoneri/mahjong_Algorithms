@@ -2141,6 +2141,53 @@ function LPokerUtils.sort_tzz(t)
 		end)
 end
 
+local x = { {
+    _type = 1,
+    cards = { 33 },
+    score = -7
+  }, {
+    _type = 1,
+    cards = { 41 },
+    score = -6
+  }, {
+    _type = 1,
+    cards = { 54 },
+    score = -5
+  }, {
+    _type = 1,
+    cards = { 113 },
+    score = 1
+  }, {
+    _type = 2,
+    cards = { 122, 123 },
+    score = 4
+  }, {
+    _type = 2,
+    cards = { 82, 83 },
+    score = 0
+  }, {
+    _type = 2,
+    cards = { 141, 144 },
+    score = 6
+  }, {
+    _type = 2,
+    cards = { 153, 154 },
+    score = 7
+  } } 
+function LPokerUtils.sort_type(t)
+	table.sort(t, function(a,b)
+			if a._type == b._type then
+				return a.score < b.score
+			else
+				return a._type > b._type
+			end
+		end)
+end
+
+LPokerUtils.sort_type(x)
+
+--print("----------",inspect(x))
+
 function LPokerUtils.get_point_nums(cards)
 	--返回key 点数  value 数量
 	local ret = {}
@@ -2240,6 +2287,7 @@ end
 
 function LPokerUtils.get_cards_score(cards)
 	local cardsType = LPokerUtils.getTypeOfCards(cards)
+	print(cardsType)
 	--print("cardsType分值为:",inspect(cardsType))
 	if cardsType == PokerType.single then
 		return LPokerUtils.get_single_score(cards)
@@ -2277,22 +2325,22 @@ function LPokerUtils.get_cards_score(cards)
 		return LPokerUtils.pair_straight(cards)
 
 	elseif cardsType == PokerType.trioStraight then
-		return LPokerUtils.getThreeStraightTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 
 	elseif cardsType == PokerType.trioStraightWithSingle then
-		return LPokerUtils.getThreeStraightWithSingleTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 
 	elseif cardsType == PokerType.trioStraightWithPair then
-		return LPokerUtils.getThreeStraightWithPairTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 
 	elseif cardsType == PokerType.fourStraight then
-		return LPokerUtils.getFourStraightTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 
 	elseif cardsType == PokerType.fourStraightWithTwoSingle then
-		return LPokerUtils.getFourStraightWithTwoSingleTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 
 	elseif cardsType == PokerType.fourStraightWithTwoPair then
-		return LPokerUtils.getFourStraightWithTwoPairTypeValue(cards)
+		return LPokerUtils.get_four_single_score(cards)
 	end
 	
 end

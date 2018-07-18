@@ -28,8 +28,9 @@ function M.split(set)
 	--先找出单牌(左边没有右边也没有的) 2 和 鬼牌直接定为单牌
 	--拆完牌的数据
 	local split = {}
-	local cards = {41,42,54,61,64,74,81,83,82,84,93,103,114,121,122,123,121,141,151,152,153,160,170}
-	local set_t = table_copy_table(cards)
+	--143, 104, 114, 112, 131, 63, 33, 94, 133, 51, 122, 42, 53, 31, 132, 111, 144
+	--local cards = {144, 81, 82, 52, 84, 133, 101, 101, 102, 103, 152, 153, 153, 73, 154, 42, 122, 123, 123, 93, 61, 62, 31}
+	local set_t = table_copy_table(set)
 	local cards_Obj = LPokerUtils.numToObj(set_t)
 	local cards_nums =LPokerUtils.get_point_nums(cards_Obj)
 	local single_cards = LPokerUtils.get_single_cards(cards_nums)
@@ -37,12 +38,14 @@ function M.split(set)
 	--把拆分出来的牌从手牌中分出来
 	local separate_cards = M.separate_card(set_t,single_cards)
 	--把拆分出来的牌归类(根据特征值的大类)LPokerUtils.explodeValue(value)
-	M.separate_card_1(separate_cards,split)
-	--print(inspect(set_t))
-	--print(inspect(separate_cards))
-	--print(inspect(split))
+	M.recursive_separate(separate_cards,split)
 	--第二步拆分
-	M.continue_separate(set_t,split)
+	local result = M.continue_separate(set_t,split)
+
+	--print(inspect(M.get_max_cards_ex_bomb(result))) 
+	--print(inspect(M.get_max_cards(result))) 
+	--print("result",inspect(result))
+	return result
 end
 
 function M.continue_separate(set,split)
@@ -52,16 +55,17 @@ function M.continue_separate(set,split)
 	--剩余的牌中提取出炸弹,3个,对子
 
 	local all_group = LPokerUtils.getHintCardsType(set_t, 0, 2)
+	print("所有牌型",inspect(all_group))
 	LPokerUtils.sort_tzz(all_group)
-	--print("all_group  x",inspect(all_group))
 
 	local x = {}
 	M.get_all_group(set_t,cards_Obj,x,0)
-	--print("last  x",inspect(x))
 	local separate_result = M.get_nums(x)
-	--print("获取到最后拆分完的牌型",inspect(separate_result))
-	--print("获取到最后拆分完的牌型",inspect(#separate_result))
 	local score_result = M.get_total_score(separate_result)
+	if #score_result < 1 then
+		return M.common_separate(set,split)
+	end
+
 	print("每个牌型的分数",inspect(score_result))
 	local need_result = {}
 	for _,v in pairs(M.get_max_score(score_result,3)) do
@@ -84,6 +88,7 @@ function M.continue_separate(set,split)
 			table.insert(v,{cards = y.cards,score = score,_type = LPokerUtils.explodeValue(y.tzz)})
 		end
 	end
+	print("最后几组",inspect(need_result))
 	local score_result1 = M.get_total_score(need_result)
 	local index = M.get_max_score(score_result1,1)
 	--找到了最合适的一组牌
@@ -92,8 +97,37 @@ function M.continue_separate(set,split)
 
 	--合并 need_result 和 split
 	local result = M.merge_table(need_result[index[1]],split)
-
+	LPokerUtils.sort_type(result)
 	print("最后结果",inspect(result))
+	return result
+end
+
+function M.common_separate(set,split)
+	print("common_separate set",inspect(set))
+	print("common_separate split",inspect(split))
+	local all_group = LPokerUtils.getHintCardsType(set, 0, 2)
+	local need_result = {}
+	for k,v in pairs(all_group) do
+		local score = LPokerUtils.get_cards_score(v.cards)
+		local _type = LPokerUtils.explodeValue(v.tzz)
+		table.insert(need_result,{cards = v.cards,score = score,_type = LPokerUtils.explodeValue(v.tzz)})
+	end
+	need_result = M.merge_table(need_result,split)
+	return need_result
+end
+
+--获取最大牌型 不包括炸弹
+function M.get_max_cards_ex_bomb(data)
+	for _,v in pairs(data) do
+		if v._type < PokerType.bomb then
+			return v
+		end
+	end
+end
+
+--获取最大牌型 包括炸弹
+function M.get_max_cards(data)
+	return data[1]
 end
 
 function M.merge_table(t1,t2)
@@ -105,6 +139,9 @@ function M.merge_table(t1,t2)
 end
 --获取分数高的几个牌型(暂定获取3个分数最高的)
 function M.get_max_score(data,num)
+	if data and #data < 1 then
+		return
+	end
 	local ret = {}
 	for i=1,num do
 		ret[i] = 0
@@ -128,7 +165,6 @@ function M.get_total_score(data)
 		local score = 0
 		for j=1,#data[i] do
 		  	score = score + data[i][j].score
-		  	--print("data[i][j]",inspect(data[i][j])) 
 		end
 		ret[i] = score
 	end
@@ -157,7 +193,6 @@ end
 
 --原始牌型set
 function M.get_all_group(set,cards_Obj,ret,key)
-	--local ret = {}
 	if not key then
 		key = 0
 	end
@@ -195,12 +230,6 @@ function M.get_DATA(set,key)
 	return ret
 end
 
-function M.recursive_separate(set,ot_cards)
-
-end
-
-
-
 function M.get_other_cards(data,cards)
 	for _,v in pairs(data) do
 		if v then
@@ -209,7 +238,7 @@ function M.get_other_cards(data,cards)
 	end
 end
 
-function M.separate_card_1(cards,split)
+function M.recursive_separate(cards,split)
 	local ret = {}
 	local bomb , trio , one_pair ,joke_pair, remain_cards
 	bomb , remain_cards = LPokerUtils.getAllBomb(cards , 0)
@@ -256,8 +285,6 @@ function M.separate_card_del(set,cards)
 		local c = M.dorp(set_t,v)
 		table.insert(ret,c) 
 	end
-	--print("ret",inspect(ret))
-	--print("set",inspect(set))
 	return set_t,ret
 end
 
@@ -307,6 +334,40 @@ function M.dorp(t,c)
 		end
 	end
 end
-M.split()
+
+function M.add(t,c)
+	if type(c) == "table" then
+		for _,v in ipairs(c) do
+			table.insert(t,v)
+		end
+	else
+		table.insert(t,c)
+	end
+end
+
+function M.get_cards_score(t)
+	local score = 0
+	for k,v in pairs(t) do
+		score = score + v.score
+	end
+	return score
+end
+
+function M.is_again_separate_cards(cards,tzz,_score)
+	local all = LPokerUtils.getHintCardsType(cards,tzz)
+	for k,v in pairs(all) do
+		local x,y = M.separate_card_del(cards,v.cards)
+		local res = M.split(x)
+		local score = M.get_cards_score(res)
+
+		if ( _score - score ) <= 10 then
+			return v , res
+		end
+	end
+
+end
+
+local x = math.random(1,(3 - 1) < 2 and 1 or (3 - 1))
+print(x)
 
 return M
