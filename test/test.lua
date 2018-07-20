@@ -2,6 +2,7 @@
 local M = {}
 require "landlord_poker"
 local inspect = require "inspect"
+--local skynet = require "skynet"
 
 function table_copy_table(ori_tab)
 	if (type(ori_tab) ~= "table") then
@@ -28,9 +29,8 @@ function M.split(set)
 	--先找出单牌(左边没有右边也没有的) 2 和 鬼牌直接定为单牌
 	--拆完牌的数据
 	local split = {}
-	--143, 104, 114, 112, 131, 63, 33, 94, 133, 51, 122, 42, 53, 31, 132, 111, 144
-	--local cards = {144, 81, 82, 52, 84, 133, 101, 101, 102, 103, 152, 153, 153, 73, 154, 42, 122, 123, 123, 93, 61, 62, 31}
-	local set_t = table_copy_table(set)
+	local cards = set--{123, 82, 62, 124, 61, 122, 153, 144, 64, 52, 84, 34, 114, 31, 121, 53, 103}
+	local set_t = table_copy_table(cards)
 	local cards_Obj = LPokerUtils.numToObj(set_t)
 	local cards_nums =LPokerUtils.get_point_nums(cards_Obj)
 	local single_cards = LPokerUtils.get_single_cards(cards_nums)
@@ -44,7 +44,9 @@ function M.split(set)
 
 	--print(inspect(M.get_max_cards_ex_bomb(result))) 
 	--print(inspect(M.get_max_cards(result))) 
-	--print("result",inspect(result))
+	LPokerUtils.sort_type(result)
+
+	M.arrange_cards(result)
 	return result
 end
 
@@ -61,12 +63,11 @@ function M.continue_separate(set,split)
 	local x = {}
 	M.get_all_group(set_t,cards_Obj,x,0)
 	local separate_result = M.get_nums(x)
-	local score_result = M.get_total_score(separate_result)
+	local score_result = M.get_total_score(separate_result) or {}
+	--skynet.error("每个牌型的分数",inspect(score_result))
 	if #score_result < 1 then
 		return M.common_separate(set,split)
 	end
-
-	print("每个牌型的分数",inspect(score_result))
 	local need_result = {}
 	for _,v in pairs(M.get_max_score(score_result,3)) do
 	 	table.insert(need_result,separate_result[v])
@@ -103,8 +104,6 @@ function M.continue_separate(set,split)
 end
 
 function M.common_separate(set,split)
-	print("common_separate set",inspect(set))
-	print("common_separate split",inspect(split))
 	local all_group = LPokerUtils.getHintCardsType(set, 0, 2)
 	local need_result = {}
 	for k,v in pairs(all_group) do
@@ -112,12 +111,14 @@ function M.common_separate(set,split)
 		local _type = LPokerUtils.explodeValue(v.tzz)
 		table.insert(need_result,{cards = v.cards,score = score,_type = LPokerUtils.explodeValue(v.tzz)})
 	end
+
 	need_result = M.merge_table(need_result,split)
+	
 	return need_result
 end
-
 --获取最大牌型 不包括炸弹
 function M.get_max_cards_ex_bomb(data)
+		--skynet.error("get_max_cards_ex_bomb",inspect(data))
 	for _,v in pairs(data) do
 		if v._type < PokerType.bomb then
 			return v
@@ -125,9 +126,53 @@ function M.get_max_cards_ex_bomb(data)
 	end
 end
 
+--获取牌的数据 _type,类型  nums表示获取第几大的值 99表示到数第二的  100表示最大的
+function M.get_cards_by_type(data,_type,nums)
+	local t = {}
+	for k,v in pairs(data) do
+		if v._type == _type then
+			table.insert(t,v)
+		end
+	end
+	LPokerUtils.sort_type(t)
+	if nums == 100 then
+		return t[#t]
+	elseif nums == 99 then
+		return t[#t - 1] or t[#t]
+	else
+		return t[nums] or t[#t]
+	end
+end
+
+--获取牌的数据 除了某种类型
+function M.get_cards_ex_type(data,_type)
+	local t = {}
+	for k,v in pairs(data) do
+		if v._type ~= _type then
+			table.insert(t,v)
+		end
+	end
+	LPokerUtils.sort_type(t)
+
+	local data = M.get_max_cards_ex_bomb(t)
+	if not data then
+		return t[#t]
+	end
+end
 --获取最大牌型 包括炸弹
 function M.get_max_cards(data)
 	return data[1]
+end
+
+--获取最小炸弹
+function M.get_min_bomb_cards(data)
+	local ret
+	for _,v in pairs(data) do
+		if v._type >= PokerType.bomb then
+			ret = v
+		end
+	end
+	return ret
 end
 
 function M.merge_table(t1,t2)
@@ -139,9 +184,6 @@ function M.merge_table(t1,t2)
 end
 --获取分数高的几个牌型(暂定获取3个分数最高的)
 function M.get_max_score(data,num)
-	if data and #data < 1 then
-		return
-	end
 	local ret = {}
 	for i=1,num do
 		ret[i] = 0
@@ -223,7 +265,7 @@ function M.get_DATA(set,key)
 	for k,v in pairs(all_group) do
 		local x = LPokerUtils.explodeValue(v.tzz)
 		--前俩轮不考虑对子的牌型,从第三轮开始考虑对子
-		if (key < 100 and x > 2) or (key > 100 and x > 1) then
+		if (key < 10 and x > 2) or (key > 10 and x > 1) then
 			table.insert(ret,v)
 		end
 	end
@@ -306,7 +348,7 @@ end
 
 function M.has(t,c)
 
-	for i,v in ipairs(t) do
+	for _,v in pairs(t) do
 		if v == c then
 			return true
 		end
@@ -345,6 +387,16 @@ function M.add(t,c)
 	end
 end
 
+function M.del_separate_data(t,tzz)
+	for k,v in pairs(t) do
+		if LPokerUtils.getCardsTypeValue(v.cards) == tzz then
+			table.remove(t,k)
+			return true
+		end
+	end
+end
+
+
 function M.get_cards_score(t)
 	local score = 0
 	for k,v in pairs(t) do
@@ -352,9 +404,43 @@ function M.get_cards_score(t)
 	end
 	return score
 end
+--进一步整理拆完后的牌
+function M.arrange_cards(t)
+	local ret = 1
+	for k,v in pairs(t) do
+		local cs = {}
+		for _,c in pairs(v.cards) do
+			cs[c//10] = (cs[c//10] or 0) + 1
+		end
+		if M.has(cs,3) and not (M.has(cs,1) or M.has(cs,2)) then
+			local c
+			local index
+			for i=#t,1, -1 do
+				if t[i]._type == 1 and t[i].score < 4 then
+					c = t[i].cards
+					index = i
+				end
+			end
+			if not c then
+				for i=#t,1, -1 do
+					if t[i]._type == 2 and t[i].score < 5 then
+						c = t[i].cards
+						index = i
+					end
+				end
+			end
+			M.add(v.cards,c)
+			table.remove(t,index)
+		end
+	end
+end
 
-function M.is_again_separate_cards(cards,tzz,_score)
-	local all = LPokerUtils.getHintCardsType(cards,tzz)
+function M.is_again_separate_cards(set,tzz,result)
+	local _score = 10--M.get_cards_score(result)
+	local cards = table_copy_table(set)
+	cards = {44,52,61,71,72,73,84,82,83,102}
+	local all = LPokerUtils.getHintCardsType(cards,0,2)
+	print("all",inspect(all))
 	for k,v in pairs(all) do
 		local x,y = M.separate_card_del(cards,v.cards)
 		local res = M.split(x)
@@ -367,7 +453,48 @@ function M.is_again_separate_cards(cards,tzz,_score)
 
 end
 
-local x = math.random(1,(3 - 1) < 2 and 1 or (3 - 1))
-print(x)
+--[[--M.is_again_separate_cards()
+ 
+ local x = { {
+    _type = 21,
+    cards = { 32, 44, 52, 62, 74, 82, 91 },
+    score = 2
+  }, {
+    _type = 3,
+    cards = { 151, 152, 154 },
+    score = 7
+  }, {
+    _type = 2,
+    cards = { 131, 134 },
+    score = 5
+  }, {
+    _type = 2,
+    cards = { 142, 144 },
+    score = 6
+  }, {
+    _type = 1,
+    cards = { 34 },
+    score = -7
+  }, {
+    _type = 1,
+    cards = { 64 },
+    score = -4
+  }, {
+    _type = 1,
+    cards = { 112 },
+    score = 1
+  } } 
+
+M.arrange_cards(x)
+print(inspect(x))
+
+]]
+
+local x = {144, 33, 83, 83, 52, 133, 54, 102, 134, 71, 103, 103, 151, 41, 170, 123, 43, 123, 124, 61, 62, 63, 111}
+local y = {33, 41, 52, 61, 71, 83}
+x,y = M.separate_card_del(x,y)
+print(inspect(x))
+print(inspect(y))
+
 
 return M

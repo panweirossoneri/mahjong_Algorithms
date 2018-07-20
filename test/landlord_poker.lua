@@ -175,6 +175,7 @@ function LPokerUtils.getHintCardsType(cardsData, tzz, priority)
 		end
 
 		local result1 = LPokerUtils.getAllFourWithTwoSingle(cardsData, tzz)
+		print(inspect(result1))
 		if not(result1 == nil) and #result1 > 0 then
 			for _,bomb in ipairs(result1) do
 				table.insert(result , bomb)
@@ -852,7 +853,8 @@ function LPokerUtils.getAllFourWithTwoSingle(cardsData , tzz)
 						table.insert(singleCards, v)
 					end
 				else
-					return 1
+					--	todo 这里 有一个莫名奇妙的问题
+					return {}
 				end
 			else
 				-- 不够了
@@ -1233,9 +1235,9 @@ function LPokerUtils.compareCards(curCards , lastCards)
 		-- print("上家的牌不符合牌型规则。")
 		return -100
 	end
-
 	return LPokerUtils.compareTZZ(tzz1 , tzz2)
 end
+
 
 --[[
 	比较特征值
@@ -1910,6 +1912,7 @@ function LPokerUtils.isTrioStraight(cards)
 		for i=1,len-3,3 do
 			if not(cards[i].value == cards[i+2].value and 
 				cards[i].value + 1 == cards[i+3].value and
+				cards[i].value + 1 == cards[i+5].value and
 				cards[i+3].value < 15) then
 				return false
 			end
@@ -2141,39 +2144,6 @@ function LPokerUtils.sort_tzz(t)
 		end)
 end
 
-local x = { {
-    _type = 1,
-    cards = { 33 },
-    score = -7
-  }, {
-    _type = 1,
-    cards = { 41 },
-    score = -6
-  }, {
-    _type = 1,
-    cards = { 54 },
-    score = -5
-  }, {
-    _type = 1,
-    cards = { 113 },
-    score = 1
-  }, {
-    _type = 2,
-    cards = { 122, 123 },
-    score = 4
-  }, {
-    _type = 2,
-    cards = { 82, 83 },
-    score = 0
-  }, {
-    _type = 2,
-    cards = { 141, 144 },
-    score = 6
-  }, {
-    _type = 2,
-    cards = { 153, 154 },
-    score = 7
-  } } 
 function LPokerUtils.sort_type(t)
 	table.sort(t, function(a,b)
 			if a._type == b._type then
@@ -2183,10 +2153,6 @@ function LPokerUtils.sort_type(t)
 			end
 		end)
 end
-
-LPokerUtils.sort_type(x)
-
---print("----------",inspect(x))
 
 function LPokerUtils.get_point_nums(cards)
 	--返回key 点数  value 数量
@@ -2225,6 +2191,7 @@ end
 
 
 ----计分
+local BASE_TYPE_SCORE = 0
 local MAX_TYPE_SCORE = 15
 function LPokerUtils.get_base_score(c)
 	return c//10 + (- 10)
@@ -2287,7 +2254,6 @@ end
 
 function LPokerUtils.get_cards_score(cards)
 	local cardsType = LPokerUtils.getTypeOfCards(cards)
-	print(cardsType)
 	--print("cardsType分值为:",inspect(cardsType))
 	if cardsType == PokerType.single then
 		return LPokerUtils.get_single_score(cards)
@@ -2345,21 +2311,81 @@ function LPokerUtils.get_cards_score(cards)
 	
 end
 
+function LPokerUtils.free_value(nums)
+	for k,v in pairs(nums) do
+		if v == 0 then
+			nums[k] = nil
+		end
+	end
+end
+
+function LPokerUtils.del_cards_value(nums,cards)
+	for _,v in pairs(cards) do
+		if nums[v] then
+			nums[v] = nums[v] - 1
+		end
+	end
+end
+
+--nums 牌    num ：长度    index 最大：99 最小：1
+function LPokerUtils.get_single_straight(nums,num,index)
+	if not num then
+		num = 5
+	end
+
+	local ret = {}
+	for k,v in pairs(nums) do
+		if v then
+			for i=k,k+num - 1 do
+				if not nums[i] then
+					ret = {}
+					break
+				end
+				table.insert(ret,i)
+			end
+			if #ret == num then
+
+				break
+			end
+		end
+	end
+	if next(ret) == nil then
+		return
+	else
+		return ret
+	end
+end
 --local x = LPokerUtils.get_cards_score{151,152,153,154,122,123}
 --print("牌型分值为:",inspect(x))
 --[[
-local cards = {41,42,54,61,64,74,83,93,103,114,121,122,123,141,144,151,152,153,160}
+local cards = {41,42,54,61,64,74,83,93,103,114,121,122,123,141,144,151,152,153,160,124}
 local cards_Obj = LPokerUtils.numToObj(cards)
 print(inspect(cards_Obj))
 local cards_nums =LPokerUtils.get_point_nums(cards_Obj)
 print(inspect(cards_nums))
 local single_cards,remain_cards = LPokerUtils.get_single_cards(cards_nums)
 
+--剩下牌里面去掉炸弹
+local bombs = {}
+for k,v in pairs(remain_cards) do
+	if v == 4 then
+		table.insert(bombs,k)
+
+		remain_cards[k] = remain_cards[k] - 4
+	end
+end
+LPokerUtils.free_value(remain_cards)
+
+local x = LPokerUtils.get_single_straight(remain_cards,5)
+LPokerUtils.del_cards_value(remain_cards,x)
+LPokerUtils.free_value(remain_cards)
+
+print("bombs",inspect(bombs))
 print(inspect(single_cards))
 print("remain_cards",inspect(remain_cards))
 
 print("---------------")
-
+--local x = LPokerUtils.getHintCardsType(cards,0,2)
 --local x,y,z,a = LPokerUtils.getAllSingle(cards)
 print(inspect(x))
 print(inspect(y))

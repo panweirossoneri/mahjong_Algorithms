@@ -1,58 +1,106 @@
-local name = {
+local M = {}
 
- "  墨尔本.晴",
- " 心宽何处不桃源",
- "  涙冷颜、",
- " 离人愁",
- "江船夜雨听笛",
- " 灬 离歌且莫翻新阕",
- "捞月亮的人",
- "听弦断ヽ　断那三千痴缠。",
- "残冬醉离殇、",
- "离殇丶 似水流年飞逝",
- "叶繁终唯枯。",
- "卿以君歌",
-      "远赴相思",
-      "太平洋",
-      "仦__灬最美年华",
-      "绿竹猗猗",
-      "流年//岁月",
-      "忆兮倾此１生为伊乆°",
-      "黑白曲线丶谁落兮了岁尘",
-      "笙歌醉梦",
-      "待绾之人。",
-      "凉城昔忆i",
-      "月下瑹歌゛",
-      "一曲琵琶倾城梦",
-      "■岁月流年﹌",
-      "童言无忌！",
-      "陌丄、重染。",
-      "枯叶蝶的伤。",
-      "深府石板幽径",
-      "颠覆天下",
-      "后宫三千男妃@",
-      "苏墨白ゥ",
-      "几年离索，",
-      "困你的牢笼",
-      "法西斯",
-      "长欢久安",
-      "送君千里",
-      "洒落凡尘的雨",
-     " 妾本良人i",
-}
-function create_sql()
-  --1250   1418
-	for i=1,200 do
-		--print(string.format("INSERT INTO `qicaipoker`.`usergame`(`uid`, `uchip`, `udiamond`, `utombola`, `ulevel`, `matchticket`, `udocard`, `utime`, `uvip`, `uldays`, `uscore`, `uhscore`, `uwincnt`, `ulosecnt`, `udrawcnt`, `win_streak`, `ulogins`, `ustatus`, `gt`, `mucount`, `zgcount`, `strong_box`, `br_wincnt`, `br_losecnt`, `br_drawcnt`, `day_ticket`, `month_ticket`, `master_integrate`) VALUES (1201350+%d, 50000, 0, 0, 1, 0, 0, 1525576489, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0);",i))
-    --print(string.format("INSERT INTO `qicaipoker`.`userinfo`(`uid`, `game`, `puid`, `uemail`, `pfid`, `usid`, `uname`, `uface`, `usex`, `login_type`, `mobile`, `device_id`, `urtime`, `ustatus`, `next_key`, `is_pay`) VALUES (1201379 + %d, 1, 1231232379 + %d , '1201010@163.com', 1, 1, '%s', 'http://cnd.7cpoker.com/image/header/%d.png', 2, NULL, NULL, '', 1525576489, 0, NULL, 0);",i,i,name[i],i//2))
-	 print(string.format("UPDATE `qicaipoker`.`userinfo` SET `uface` = 'http://cnd.7cpoker.com/image/header/%d.png' WHERE `uid` = 1201000 + %d;",i%40,i))
+require "landlord_poker"
+local inspect = require "inspect"
+
+function table_copy_table(ori_tab)
+  if (type(ori_tab) ~= "table") then
+    return nil
   end
+  local new_tab = {}
+  for i,v in pairs(ori_tab) do
+    local vtyp = type(v)
+    if (vtyp == "table") then
+      new_tab[i] = table_copy_table(v)
+    elseif (vtyp == "thread") then
+      new_tab[i] = v
+    elseif (vtyp == "userdata") then
+      new_tab[i] = v
+    else
+      new_tab[i] = v
+    end
+  end
+  return new_tab
 end
 
-create_sql()
+function M.split(set)
+  --先找出单牌(左边没有右边也没有的) 2 和 鬼牌直接定为单牌
+  --拆完牌的数据
+  local split = {}
+  local cards = {41,42,54,61,64,74,83,93,103,114,121,122,123,141,144,151,152,153,160,124}--set--{123, 82, 62, 124, 61, 122, 153, 144, 64, 52, 84, 34, 114, 31, 121, 53, 103}
+  local set_t = table_copy_table(cards)
+  local cards_Obj = LPokerUtils.numToObj(set_t)
+  local cards_nums =LPokerUtils.get_point_nums(cards_Obj)
+  local single_cards,remain_cards = LPokerUtils.get_single_cards(cards_nums)
+  --第一步拆分完成
+  --把拆分出来的牌从手牌中分出来
+  --local separate_cards = M.separate_card(set_t,single_cards)
+  print(inspect(single_cards))
 
---print(#name)
---INSERT INTO `qicaipoker`.`usergame`(`uid`, `uchip`, `udiamond`, `utombola`, `ulevel`, `matchticket`, `udocard`, `utime`, `uvip`, `uldays`, `uscore`, `uhscore`, `uwincnt`, `ulosecnt`, `udrawcnt`, `win_streak`, `ulogins`, `ustatus`, `gt`, `mucount`, `zgcount`, `strong_box`, `br_wincnt`, `br_losecnt`, `br_drawcnt`, `day_ticket`, `month_ticket`, `master_integrate`) VALUES (1201199, 50000, 0, 0, 1, 0, 0, 1525576489, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0);
---http://cnd.7cpoker.com/image/header/96.png
 
---UPDATE `qicaipoker`.`userinfo` SET `uface` = 'http://cnd.7cpoker.com/image/header/%d.png' WHERE `uid` = 1201417;
+  --把拆分出来的牌归类(根据特征值的大类)LPokerUtils.explodeValue(value)
+  --M.recursive_separate(separate_cards,split)
+  --第二步拆分
+  --local result = M.continue_separate(set_t,split)
+
+  --print(inspect(M.get_max_cards_ex_bomb(result))) 
+  --print(inspect(M.get_max_cards(result))) 
+  --LPokerUtils.sort_type(result)
+
+  --M.arrange_cards(result)
+  return result
+end
+
+
+
+function M.dorp(t,c)
+    for i,v in ipairs(t) do
+        if v == c then
+            return table.remove(t,i)
+        end
+    end
+end
+
+
+function M.get_origin_data(set,cards)
+  local ret = {}
+  local _cards = table_copy_table(cards)
+  local obj = {}
+  for i=1,#set do
+    obj = LPokerUtils.numToObj(set[i])
+    if _cards[obj.value] and _cards[obj.value] > 0 then
+      table.insert(ret,set[i])
+      _cards[obj.value] = _cards[obj.value] - 1
+    end
+  end
+  return ret
+end
+
+function M.separate_card(set,cards)
+  local ret = {}
+  for k,v in pairs(M.get_origin_data(set,cards)) do
+    table.insert(ret,M.dorp(set,v)) 
+  end
+
+  return ret
+end
+
+--M.split()
+local x = {
+  [3] = 3,
+  [4] = 2,
+  [5] = 2,
+  [6] = 1,
+  [8] = 2,
+  [9] = 2,
+  [10] = 2,
+  [11] = 2,
+  [12] = 2
+}
+
+for k,v in pairs(x) do
+    if not v then
+      break
+    end
+    print(k,v)
+end
